@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Weather Widget</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    .widget {
+      width: 320px;
+      padding: 28px 24px;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 24px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      color: #fff;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .widget::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle at 30% 20%, rgba(255,255,255,0.05) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 20px;
+    }
+
+    .location {
+      font-size: 15px;
+      font-weight: 600;
+      opacity: 0.9;
+      letter-spacing: 0.02em;
+    }
+
+    .date-time {
+      font-size: 12px;
+      opacity: 0.6;
+      margin-top: 4px;
+      letter-spacing: 0.01em;
+    }
+
+    .refresh-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: rgba(255,255,255,0.6);
+      padding: 4px;
+      border-radius: 50%;
+      transition: color 0.2s, transform 0.4s;
+      line-height: 0;
+    }
+
+    .refresh-btn:hover { color: #fff; }
+    .refresh-btn.spinning { animation: spin 1s linear infinite; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Main display */
+    .main {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .temp-block { display: flex; flex-direction: column; }
+
+    .temperature {
+      font-size: 68px;
+      font-weight: 200;
+      line-height: 1;
+      letter-spacing: -2px;
+    }
+
+    .condition {
+      font-size: 14px;
+      opacity: 0.75;
+      margin-top: 6px;
+      font-weight: 400;
+    }
+
+    .icon-wrap {
+      width: 80px;
+      height: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .icon-wrap svg {
+      width: 72px;
+      height: 72px;
+      overflow: visible;
+    }
+
+    /* Toggle */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .toggle-label { font-size: 13px; opacity: 0.7; font-weight: 500; }
+    .toggle-label.active { opacity: 1; }
+
+    .toggle {
+      position: relative;
+      width: 44px;
+      height: 24px;
+      cursor: pointer;
+    }
+
+    .toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+
+    .slider {
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,0.2);
+      border-radius: 12px;
+      transition: background 0.3s;
+      border: 1px solid rgba(255,255,255,0.25);
+    }
+
+    .slider::after {
+      content: '';
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      left: 3px;
+      top: 2px;
+      background: #fff;
+      border-radius: 50%;
+      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+    }
+
+    .toggle input:checked + .slider { background: rgba(255,255,255,0.35); }
+    .toggle input:checked + .slider::after { transform: translateX(20px); }
+
+    /* Error / loading */
+    .status-msg {
+      font-size: 13px;
+      opacity: 0.7;
+      text-align: center;
+      padding: 12px 0;
+      line-height: 1.6;
+    }
+
+    .status-msg.error { opacity: 0.85; color: #ffb3b3; }
+
+    /* SVG icon animations */
+    @keyframes sunRotate {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    @keyframes cloudFloat {
+      0%, 100% { transform: translateX(0); }
+      50% { transform: translateX(4px); }
+    }
+    @keyframes rainDrop {
+      0% { transform: translateY(0); opacity: 1; }
+      100% { transform: translateY(10px); opacity: 0; }
+    }
+    @keyframes lightning {
+      0%, 90%, 100% { opacity: 1; }
+      92%, 96% { opacity: 0.2; }
+    }
+    @keyframes snowfall {
+      0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(10px) rotate(180deg); opacity: 0; }
+    }
+    @keyframes fogSlide {
+      0%, 100% { transform: translateX(0); opacity: 0.6; }
+      50% { transform: translateX(6px); opacity: 1; }
+    }
+    @keyframes windMove {
+      0%, 100% { transform: translateX(0); }
+      50% { transform: translateX(5px); }
+    }
+
+    .sun-rays { animation: sunRotate 8s linear infinite; transform-origin: 36px 36px; }
+    .cloud-main { animation: cloudFloat 4s ease-in-out infinite; }
+    .rain-drop { animation: rainDrop 1.2s ease-in infinite; }
+    .rain-drop:nth-child(2) { animation-delay: 0.4s; }
+    .rain-drop:nth-child(3) { animation-delay: 0.8s; }
+    .lightning-bolt { animation: lightning 2.5s ease-in-out infinite; }
+    .snow-flake { animation: snowfall 2s ease-in infinite; }
+    .snow-flake:nth-child(2) { animation-delay: 0.7s; }
+    .snow-flake:nth-child(3) { animation-delay: 1.4s; }
+    .fog-line { animation: fogSlide 3s ease-in-out infinite; }
+    .fog-line:nth-child(2) { animation-delay: 0.5s; animation-direction: reverse; }
+    .fog-line:nth-child(3) { animation-delay: 1s; }
+    .wind-line { animation: windMove 2s ease-in-out infinite; }
+    .wind-line:nth-child(2) { animation-delay: 0.3s; }
+    .wind-line:nth-child(3) { animation-delay: 0.6s; }
+  </style>
+</head>
+<body>
+<div class="widget" id="widget">
+  <div class="header">
+    <div>
+      <div class="location" id="location">Detecting location…</div>
+      <div class="date-time" id="datetime"></div>
+    </div>
+    <button class="refresh-btn" id="refreshBtn" title="Refresh" aria-label="Refresh weather">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/>
+        <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+      </svg>
+    </button>
+  </div>
+
+  <div id="content">
+    <div class="status-msg" id="statusMsg">Fetching weather data…</div>
+  </div>
+
+  <div class="toggle-row" id="toggleRow" style="display:none">
+    <span class="toggle-label active" id="labelC">°C</span>
+    <label class="toggle" aria-label="Toggle Celsius/Fahrenheit">
+      <input type="checkbox" id="unitToggle" />
+      <span class="slider"></span>
+    </label>
+    <span class="toggle-label" id="labelF">°F</span>
+  </div>
+</div>
+
+<script>
+  const REFRESH_INTERVAL = 10 * 60 * 1000;
+
+  let state = {
+    tempC: null,
+    isFahrenheit: false,
+    conditionText: '',
+    wmoCode: 0,
+    locationName: '',
+    lat: null,
+    lon: null,
+  };
+
+  // ── DateTime ──────────────────────────────────────────────
+  function updateDateTime() {
+    const now = new Date();
+    const opts = { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+    document.getElementById('datetime').textContent = now.toLocaleDateString('en-US', opts);
+  }
+  updateDateTime();
+  setInterval(updateDateTime, 60000);
+
+  // ── WMO code mapping ──────────────────────────────────────
+  function wmoToCondition(code) {
+    if (code === 0) return { text: 'Clear sky', icon: 'sun' };
+    if (code <= 2) return { text: 'Partly cloudy', icon: 'partly-cloudy' };
+    if (code === 3) return { text: 'Overcast', icon: 'cloud' };
+    if ([45, 48].includes(code)) return { text: 'Foggy', icon: 'fog' };
+    if ([51, 53, 55, 56, 57].includes(code)) return { text: 'Drizzle', icon: 'rain' };
+    if ([61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return { text: 'Rain', icon: 'rain' };
+    if ([71, 73, 75, 77, 85, 86].includes(code)) return { text: 'Snow', icon: 'snow' };
+    if ([95, 96, 99].includes(code)) return { text: 'Thunderstorm', icon: 'storm' };
+    if ([71, 73, 75].includes(code)) return { text: 'Snow', icon: 'snow' };
+    return { text: 'Windy', icon: 'wind' };
+  }
+
+  // ── SVG Icons ─────────────────────────────────────────────
+  const icons = {
+    sun: `<svg viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <g class="sun-rays" stroke="#FFD166" stroke-width="2.5" stroke-linecap="round">
+        <line x1="36" y1="8" x2="36" y2="14"/>
+        <line x1="36" y1="58" x2="36" y2="64"/>
+        <line x1="8" y1="36" x2="14" y2="36"/>
+        <line x1="58" y1="36" x2="64" y2="36"/>
+        <line x1="16.7" y1="16.7" x2="21" y2="21"/>
+        <line x1="51" y1="51" x2="55.3" y2="55.3"/>
+        <line x1="55.3" y1="16.7" x2="51" y2="21"/>
+        <line x1="21" y1="51" x2="16.7" y2="55.3"/>
+      </g>
+      <circle cx="36" cy="36" r="14" fill="#FFD166" opacity="0.95"/>
+    </svg>`,
+
+    'partly-cloudy': `<svg viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <g stroke="#FFD166" stroke-width="2" stroke-linecap="round" opacity="0.9">
+        <line x1="24" y1="10" x2="24" y2="15"/>
+        <line x1="10" y1="24" x2="15" y2="24"/>
+        <line x1="13" y1="13" x2="17" y2="17"/>
+        <line x1="35" y1="13" x2="31" y2="17"/>
+        <line x1="13" y1="35" x2="17" y2="31"/>
+      </g>
+      <circle cx="24" cy="24" r="10" fill="#FFD166" opacity="0.85"/>
+      <g class="cloud-main">
+        <rect x="18" y="34" width="36" height="18" rx="9" fill="rgba(255,255,255,0.85)"/>
+        <circle cx="30" cy="34" r="10" fill="rgba(255,255,255,0.85)"/>
+        <circle cx="42" cy="31" r="12" fill="rgba(255,255,255,0.85)"/>
+      </g>
+    </svg>`,
+
+    cloud: `<svg viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <g class="cloud-main">
+        <rect x="12" y="30" width="48" height="22" rx="11" fill="rgba(255,255,255,0.8)"/>
+        <circle cx="26" cy="30" r="13" fill="rgba(255,255,255,0.8)"/>
+        <circle cx="44" cy="26" r="16" fill="rgba(255,255,255,0.8)"/>
+      </g>
+    </svg>`,
+
+    rain: `<svg viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <g class="cloud-main">
+        <rect x="10" y="14" width="44" height="20" rx="10" fill="rgba(255,255,255,0.75)"/>
+        <circle cx="22" cy="14" r="12" fill="rgba(255,255,255,0.75)"/>
+        <circle cx="40" cy="11" r="14" fill="rgba(255,255,255,0.75)"/>
+      </g>
+      <line class="rain-drop" x1="24" y1="40" x2="20" y2="52" stroke="#7EC8E3" stroke-width="2.5" stroke-linecap="round"/>
+      <line class="rain-drop" x1="36" y1="40" x2="32" y2="52" stroke="#7EC8E3" stroke-width="2.5" stroke-linecap="round"/>
+      <line class="rain-drop" x1="48" y1="40" x2="44" y2="52" stroke="#7EC8E3" stroke-width="2.5" stroke-linecap="round"/>
+    </svg>`,
+
+    storm: `<svg viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <g class="cloud-main">
+        <rect x="8" y="10" width="48" height="22" rx="11" fill="rgba(200,200,220,0.8)"/>
+        <circle cx="22" cy="10" r="13" fill="rgba(200,200,220,0.8)"/>
+        <circle cx="42" cy="7" r="16" fill="rgba(200,200,220,0.8)"/>
+      </g>
+      <g class="lightning-bolt">
+        <polygon points="38,34 30,50 36,50 28,66 44,44 37,44" fill="#FFD166" stroke="#FFD166" stroke-width="0.5" stroke-linejoin="round"/>
+      </g>
+    </svg>`,
+
+    snow: `<svg viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <g class="cloud-main">
+        <rect x="10" y="12" width="44" height="20" rx="10" fill="rgba(255,255,255,0.75)"/>
+        <circle cx="22" cy="12" r="12" fill="rgba(255,255,255,0.75)"/>
+        <circle cx="40" cy="9" r="14" fill="rgba(255,255,255,0.75)"/>
+      </g>
+      <g fill="white" opacity="0.9">
+        <g class="snow-flake">
+          <line x1="22" y1="38" x2="22" y2="50" stroke="white" stroke-width="2" stroke-linecap="round"/>
+          <line x1="16" y1="44" x2="28" y2="44" stroke="white" stroke-width="2" stroke-linecap="round"/>
+          <line x1="17.8" y1="39.8" x2="26.2" y2="48.2" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+          <line x1="26.2" y1="39.8" x2="17.8" y2="48.2" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+        </g>
+        <g class="snow-flake" style="transform: translateY(2px)">
+          <line x1="36" y1="40" x2="36" y2="52" stroke="white" stroke-width="2" stroke-linecap="round"/>
+          <line x1="30" y1="46" x2="42" y2="46" stroke="white" stroke-width="2" stroke-linecap="round"/>
+          <line x1="31.8" y1="41.8" x2="40.2" y2="50.2" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+          <line x1="40.2" y1="41.8" x2="31.8" y2="50.2" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+        </g>
+        <g class="snow-flake">
+          <line x1="50" y1="38" x2="50" y2="50" stroke="white" stroke-width="2" stroke-linecap="round"/>
+          <line x1="44" y1="44" x2="56" y2="44" stroke="white" stroke-width="2" stroke-linecap="round"/>
+          <line x1="45.8" y1="39.8" x2="54.2" y2="48.2" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+          <line x1="54.2" y1="39.8" x2="45.8" y2="48.2" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+        </g>
+      </g>
+    </svg>`,
+
+    fog: `<svg viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <line class="fog-line" x1="10" y1="22" x2="62" y2="22" stroke="rgba(255,255,255,0.7)" stroke-width="3" stroke-linecap="round"/>
+      <line class="fog-line" x1="16" y1="33" x2="56" y2="33" stroke="rgba(255,255,255,0.6)" stroke-width="3" stroke-linecap="round"/>
+      <line class="fog-line" x1="10" y1="44" x2="62" y2="44" stroke="rgba(255,255,255,0.7)" stroke-width="3" stroke-linecap="round"/>
+      <line class="fog-line" x1="18" y1="55" x2="54" y2="55" stroke="rgba(255,255,255,0.5)" stroke-width="3" stroke-linecap="round"/>
+    </svg>`,
+
+    wind: `<svg viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path class="wind-line" d="M10 22 Q30 15 50 22" stroke="rgba(255,255,255,0.8)" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+      <path class="wind-line" d="M10 33 Q35 26 58 33 Q62 35 58 39 Q54 41 52 37" stroke="rgba(255,255,255,0.7)" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+      <path class="wind-line" d="M10 44 Q28 37 48 44 Q53 46 50 51 Q47 54 43 50" stroke="rgba(255,255,255,0.6)" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+    </svg>`,
+  };
+
+  // ── Render weather ────────────────────────────────────────
+  function renderWeather() {
+    const content = document.getElementById('content');
+    const toggleRow = document.getElementById('toggleRow');
+    const { text: condText, icon } = wmoToCondition(state.wmoCode);
+
+    const temp = state.isFahrenheit
+      ? Math.round(state.tempC * 9 / 5 + 32)
+      : Math.round(state.tempC);
+    const unit = state.isFahrenheit ? '°F' : '°C';
+
+    content.innerHTML = `
+      <div class="main">
+        <div class="temp-block">
+          <div class="temperature" id="tempDisplay">${temp}${unit}</div>
+          <div class="condition">${condText}</div>
+        </div>
+        <div class="icon-wrap">${icons[icon] || icons['cloud']}</div>
+      </div>
+    `;
+
+    toggleRow.style.display = 'flex';
+    document.getElementById('labelC').classList.toggle('active', !state.isFahrenheit);
+    document.getElementById('labelF').classList.toggle('active', state.isFahrenheit);
+  }
+
+  function showError(msg) {
+    document.getElementById('content').innerHTML =
+      `<div class="status-msg error">${msg}</div>`;
+    document.getElementById('toggleRow').style.display = 'none';
+  }
+
+  function showLoading() {
+    document.getElementById('content').innerHTML =
+      `<div class="status-msg" id="statusMsg">Fetching weather data…</div>`;
+  }
+
+  // ── Fetch weather ─────────────────────────────────────────
+  async function fetchWeather(lat, lon) {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weathercode&temperature_unit=celsius`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Weather API error');
+    const data = await res.json();
+    return {
+      tempC: data.current.temperature_2m,
+      wmoCode: data.current.weathercode,
+    };
+  }
+
+  async function fetchLocation(lat, lon) {
+    const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`;
+    const res = await fetch(url, { headers: { 'Accept-Language': 'en' } });
+    if (!res.ok) return 'Unknown location';
+    const data = await res.json();
+    const city = data.address.city || data.address.town || data.address.village || data.address.county || '';
+    const country = data.address.country_code?.toUpperCase() || '';
+    return [city, country].filter(Boolean).join(', ') || 'Unknown location';
+  }
+
+  // ── Main load ─────────────────────────────────────────────
+  async function loadWeather(lat, lon, skipLocation = false) {
+    const refreshBtn = document.getElementById('refreshBtn');
+    refreshBtn.classList.add('spinning');
+    showLoading();
+
+    try {
+      const [weather, locationName] = await Promise.all([
+        fetchWeather(lat, lon),
+        skipLocation ? Promise.resolve(state.locationName) : fetchLocation(lat, lon),
+      ]);
+
+      state.tempC = weather.tempC;
+      state.wmoCode = weather.wmoCode;
+      state.locationName = locationName;
+
+      document.getElementById('location').textContent = locationName;
+      renderWeather();
+    } catch (err) {
+      showError('Could not load weather data.<br>Check your connection and try again.');
+    } finally {
+      refreshBtn.classList.remove('spinning');
+    }
+  }
+
+  function init() {
+    if (!navigator.geolocation) {
+      showError('Geolocation is not supported by your browser.');
+      return;
+    }
+
+    showLoading();
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        state.lat = pos.coords.latitude;
+        state.lon = pos.coords.longitude;
+        loadWeather(state.lat, state.lon);
+        setInterval(() => loadWeather(state.lat, state.lon, true), REFRESH_INTERVAL);
+      },
+      (err) => {
+        const msgs = {
+          1: 'Location access denied.<br>Please allow location access and refresh.',
+          2: 'Location unavailable.<br>Try refreshing the page.',
+          3: 'Location request timed out.<br>Please refresh.',
+        };
+        showError(msgs[err.code] || 'Could not detect location.');
+      },
+      { timeout: 10000, maximumAge: 300000 }
+    );
+  }
+
+  // ── Toggle C°/F° ──────────────────────────────────────────
+  document.getElementById('unitToggle').addEventListener('change', function () {
+    state.isFahrenheit = this.checked;
+    if (state.tempC !== null) renderWeather();
+  });
+
+  // ── Manual refresh ────────────────────────────────────────
+  document.getElementById('refreshBtn').addEventListener('click', () => {
+    if (state.lat !== null) {
+      loadWeather(state.lat, state.lon, true);
+    } else {
+      init();
+    }
+  });
+
+  init();
+</script>
+</body>
+</html>
