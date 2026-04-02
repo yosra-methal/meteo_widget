@@ -562,65 +562,75 @@
     }
   }
 
+  // ── Fallback : géolocalisation par IP (fonctionne dans les iframes Notion) ──
+  async function locateByIP() {
+    const res = await fetch('https://ipapi.co/json/');
+    if (!res.ok) throw new Error('IP geolocation failed');
+    const data = await res.json();
+    if (!data.latitude || !data.longitude) throw new Error('No coordinates');
+    return { lat: data.latitude, lon: data.longitude };
+  }
+
+  function startWithCoords(lat, lon) {
+    state.lat = lat;
+    state.lon = lon;
+    if (state.intervalId) clearInterval(state.intervalId);
+    state.intervalId = setInterval(() => loadWeather(state.lat, state.lon, true), REFRESH_INTERVAL);
+    loadWeather(state.lat, state.lon);
+  }
+
   function requestGeolocation() {
     showLoading();
     let resolved = false;
 
-    // Timeout de secours : si getCurrentPosition ne répond jamais
-    // (iframe bloqué silencieusement par la Permissions Policy du navigateur)
-    const fallbackTimer = setTimeout(() => {
-      if (!resolved) {
-        resolved = true;
-        showError(
-          'Location access blocked.',
-          {
-            retryable: true,
-            blocked: true,
-            hint: 'Allow location access in your browser, then click Retry.'
-          }
-        );
+    // Timeout de secours : si getCurrentPosition reste silencieux (iframe Notion)
+    // → on bascule automatiquement sur la géolocalisation par IP
+    const fallbackTimer = setTimeout(async () => {
+      if (resolved) return;
+      resolved = true;
+      try {
+        const { lat, lon } = await locateByIP();
+        startWithCoords(lat, lon);
+      } catch {
+        showError('Could not detect location.', { retryable: true });
       }
-    }, 8000);
+    }, 5000);
 
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         if (resolved) return;
         resolved = true;
         clearTimeout(fallbackTimer);
-        state.lat = pos.coords.latitude;
-        state.lon = pos.coords.longitude;
-        if (state.intervalId) clearInterval(state.intervalId);
-        state.intervalId = setInterval(() => loadWeather(state.lat, state.lon, true), REFRESH_INTERVAL);
-        loadWeather(state.lat, state.lon);
+        startWithCoords(pos.coords.latitude, pos.coords.longitude);
       },
-      (err) => {
+      async (err) => {
         if (resolved) return;
         resolved = true;
         clearTimeout(fallbackTimer);
-        if (err.code === 1) {
-          showError(
-            'Location access denied.',
-            {
-              retryable: true,
-              blocked: true,
-              hint: 'Click 🔒 in the address bar → Location → Allow, then retry.'
-            }
-          );
-        } else if (err.code === 2) {
-          showError('Location unavailable.', { retryable: true });
-        } else {
-          showError('Location request timed out.', { retryable: true });
+        // GPS refusé → on essaie la géoloc IP silencieusement
+        try {
+          const { lat, lon } = await locateByIP();
+          startWithCoords(lat, lon);
+        } catch {
+          if (err.code === 1) {
+            showError(
+              'Location access denied.',
+              {
+                retryable: true,
+                blocked: true,
+                hint: 'Click 🔒 in the address bar → Location → Allow, then retry.'
+              }
+            );
+          } else {
+            showError('Could not detect location.', { retryable: true });
+          }
         }
       },
-      { timeout: 7000, maximumAge: 60000 }
+      { timeout: 4000, maximumAge: 60000 }
     );
   }
 
   function init() {
-    if (!navigator.geolocation) {
-      showError('Geolocation not supported by this browser.');
-      return;
-    }
     requestGeolocation();
   }
 
