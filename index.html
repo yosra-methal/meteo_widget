@@ -27,9 +27,9 @@
       padding: clamp(18px, 5vw, 32px) clamp(16px, 4.5vw, 28px);
       background: linear-gradient(
         135deg,
-        rgba(100, 170, 255, 0.18) 0%,
-        rgba(80, 150, 240, 0.12) 50%,
-        rgba(120, 185, 255, 0.16) 100%
+        rgba(100, 170, 255, 0.38) 0%,
+        rgba(80, 150, 240, 0.30) 50%,
+        rgba(120, 185, 255, 0.35) 100%
       );
       backdrop-filter: blur(28px) saturate(200%);
       -webkit-backdrop-filter: blur(28px) saturate(200%);
@@ -47,40 +47,33 @@
       overflow: hidden;
     }
 
-    /* Reflet lumineux qui glisse en diagonale */
-    @keyframes shimmer {
-      0%   { transform: translateX(-120%) skewX(-15deg); }
-      100% { transform: translateX(220%) skewX(-15deg); }
-    }
-
+    /* Reflet statique — lumière en haut à gauche */
     .widget::before {
       content: '';
       position: absolute;
       top: 0;
       left: 0;
-      width: 45%;
-      height: 100%;
+      width: 65%;
+      height: 55%;
       background: linear-gradient(
-        90deg,
-        transparent 0%,
-        rgba(255, 255, 255, 0.13) 40%,
-        rgba(255, 255, 255, 0.22) 50%,
-        rgba(255, 255, 255, 0.13) 60%,
+        135deg,
+        rgba(255, 255, 255, 0.22) 0%,
+        rgba(255, 255, 255, 0.06) 50%,
         transparent 100%
       );
-      animation: shimmer 4s ease-in-out infinite;
+      border-radius: 0 0 100% 0;
       pointer-events: none;
     }
 
-    /* Lueur douce permanente en haut à gauche */
+    /* Reflet secondaire bas-droite */
     .widget::after {
       content: '';
       position: absolute;
-      top: 0;
-      left: 0;
-      width: 65%;
-      height: 50%;
-      background: radial-gradient(ellipse at 15% 10%, rgba(255,255,255,0.14) 0%, transparent 65%);
+      bottom: 0;
+      right: 0;
+      width: 45%;
+      height: 35%;
+      background: radial-gradient(ellipse at 85% 90%, rgba(180, 220, 255, 0.12) 0%, transparent 70%);
       pointer-events: none;
     }
 
