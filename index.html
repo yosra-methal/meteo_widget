@@ -16,27 +16,24 @@
 
     body {
       display: flex;
-      align-items: stretch;
+      align-items: center;
+      justify-content: center;
       overflow: hidden;
     }
 
-    /* ── Widget fills the full iframe ── */
+    /* ── Widget card — responsive but stays a card ── */
     .widget {
-      width: 100%;
-      min-height: 100vh;
-      padding: clamp(14px, 5vh, 36px) clamp(14px, 5vw, 32px);
+      width: clamp(280px, 90vw, 400px);
+      padding: clamp(18px, 5vw, 32px) clamp(16px, 4.5vw, 28px);
       background: rgba(255, 255, 255, 0.12);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
       border: 1px solid rgba(255, 255, 255, 0.2);
-      border-radius: clamp(14px, 3.5vw, 24px);
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+      border-radius: clamp(16px, 4vw, 24px);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
       color: #fff;
       position: relative;
       overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
     }
 
     .widget::before {
