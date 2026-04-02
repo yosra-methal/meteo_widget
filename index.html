@@ -94,6 +94,19 @@
       letter-spacing: 0.01em;
     }
 
+    .season-tag {
+      display: inline-block;
+      margin-top: 5px;
+      font-size: clamp(10px, 2.4vw, 12px);
+      color: rgba(255, 255, 255, 0.75);
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 20px;
+      padding: 2px 10px;
+      letter-spacing: 0.02em;
+      font-weight: 500;
+    }
+
     .refresh-btn {
       background: none;
       border: none;
@@ -369,6 +382,7 @@
     <div>
       <div class="location" id="location">Detecting location…</div>
       <div class="date-time" id="datetime"></div>
+      <div class="season-tag" id="seasonTag" style="display:none"></div>
     </div>
     <button class="refresh-btn" id="refreshBtn" title="Refresh" aria-label="Refresh weather">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -414,6 +428,33 @@
   }
   updateDateTime();
   setInterval(updateDateTime, 60000);
+
+  // ── Season ───────────────────────────────────────────────
+  function getSeason(lat) {
+    const month = new Date().getMonth(); // 0 = Jan
+    const southern = lat < 0;
+    // Saisons par mois (hémisphère nord)
+    const northSeasons = [
+      'Winter','Winter','Spring','Spring','Spring',
+      'Summer','Summer','Summer','Autumn','Autumn','Autumn','Winter'
+    ];
+    const southSeasons = [
+      'Summer','Summer','Autumn','Autumn','Autumn',
+      'Winter','Winter','Winter','Spring','Spring','Spring','Summer'
+    ];
+    const emojis = { Spring: '🌸', Summer: '☀️', Autumn: '🍂', Winter: '❄️' };
+    const name = southern ? southSeasons[month] : northSeasons[month];
+    return { name, emoji: emojis[name] };
+  }
+
+  function updateSeasonTag(lat, cityName) {
+    const { name, emoji } = getSeason(lat);
+    const tag = document.getElementById('seasonTag');
+    // Extraire juste le nom de la ville (avant la virgule)
+    const city = cityName.split(',')[0].trim();
+    tag.textContent = `${emoji} ${name} in ${city}`;
+    tag.style.display = 'inline-block';
+  }
 
   // ── WMO code mapping ──────────────────────────────────────
   function wmoToCondition(code) {
@@ -619,6 +660,7 @@
       state.locationName = locationName;
 
       document.getElementById('location').textContent = locationName;
+      updateSeasonTag(lat, locationName);
       renderWeather();
     } catch (err) {
       showError('Could not load weather data.', { retryable: true });
