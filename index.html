@@ -562,7 +562,22 @@
     }
   }
 
-  // ── Fallback : géolocalisation par IP (fonctionne dans les iframes Notion) ──
+  // ── Géolocalisation par nom de ville (URL param ?city=Paris) ──────────────
+  async function locateByCity(city) {
+    const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Geocoding failed');
+    const data = await res.json();
+    if (!data.results?.length) throw new Error('City not found');
+    const r = data.results[0];
+    return {
+      lat: r.latitude,
+      lon: r.longitude,
+      name: [r.name, r.country_code?.toUpperCase()].filter(Boolean).join(', '),
+    };
+  }
+
+  // ── Fallback : géolocalisation par IP ────────────────────────────────────
   async function locateByIP() {
     const res = await fetch('https://ipapi.co/json/');
     if (!res.ok) throw new Error('IP geolocation failed');
@@ -584,7 +599,6 @@
     let resolved = false;
 
     // Timeout de secours : si getCurrentPosition reste silencieux (iframe Notion)
-    // → on bascule automatiquement sur la géolocalisation par IP
     const fallbackTimer = setTimeout(async () => {
       if (resolved) return;
       resolved = true;
@@ -607,7 +621,6 @@
         if (resolved) return;
         resolved = true;
         clearTimeout(fallbackTimer);
-        // GPS refusé → on essaie la géoloc IP silencieusement
         try {
           const { lat, lon } = await locateByIP();
           startWithCoords(lat, lon);
@@ -630,7 +643,24 @@
     );
   }
 
-  function init() {
+  async function init() {
+    // Priorité 1 : paramètre URL ?city=Paris
+    const params = new URLSearchParams(window.location.search);
+    const cityParam = params.get('city');
+    if (cityParam) {
+      showLoading();
+      try {
+        const { lat, lon, name } = await locateByCity(cityParam);
+        state.locationName = name;
+        document.getElementById('location').textContent = name;
+        startWithCoords(lat, lon);
+      } catch {
+        showError(`City "${cityParam}" not found.`, { retryable: false });
+      }
+      return;
+    }
+
+    // Priorité 2 : GPS → fallback IP
     requestGeolocation();
   }
 
