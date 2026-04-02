@@ -338,6 +338,7 @@
     locationName: '',
     lat: null,
     lon: null,
+    intervalId: null,
   };
 
   // ── DateTime ──────────────────────────────────────────────
@@ -567,8 +568,10 @@
       (pos) => {
         state.lat = pos.coords.latitude;
         state.lon = pos.coords.longitude;
+        // Annuler l'intervalle précédent avant d'en créer un nouveau
+        if (state.intervalId) clearInterval(state.intervalId);
+        state.intervalId = setInterval(() => loadWeather(state.lat, state.lon, true), REFRESH_INTERVAL);
         loadWeather(state.lat, state.lon);
-        setInterval(() => loadWeather(state.lat, state.lon, true), REFRESH_INTERVAL);
       },
       (err) => {
         if (err.code === 1) {
@@ -586,7 +589,7 @@
           showError('Location request timed out.', { retryable: true });
         }
       },
-      { timeout: 10000, maximumAge: 0 }
+      { timeout: 15000, maximumAge: 60000 }
     );
   }
 
@@ -595,36 +598,9 @@
       showError('Geolocation not supported by this browser.');
       return;
     }
-
-    // Vérifier l'état de la permission avant de demander
-    if (navigator.permissions) {
-      navigator.permissions.query({ name: 'geolocation' }).then((result) => {
-        if (result.state === 'denied') {
-          // Bloqué au niveau navigateur — on informe et on propose de réessayer
-          // (utile si l'utilisateur a débloqué entre-temps)
-          showError(
-            'Location is blocked.',
-            {
-              retryable: true,
-              blocked: true,
-              hint: 'Click 🔒 in the address bar → Location → Allow, then retry.'
-            }
-          );
-          // Écouter un éventuel changement de permission (si l'utilisateur débloque)
-          result.onchange = () => {
-            if (result.state === 'granted' || result.state === 'prompt') {
-              requestGeolocation();
-            }
-          };
-        } else {
-          // 'granted' ou 'prompt' → on demande normalement
-          requestGeolocation();
-        }
-      });
-    } else {
-      // Permissions API non disponible (vieux navigateurs) → on tente directement
-      requestGeolocation();
-    }
+    // On tente directement — laisser le navigateur gérer la permission
+    // (évite le bug du cache de navigator.permissions.query)
+    requestGeolocation();
   }
 
   // ── Toggle C°/F° ──────────────────────────────────────────
