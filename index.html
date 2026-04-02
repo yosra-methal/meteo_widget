@@ -230,6 +230,31 @@
 
     .status-msg.error { opacity: 0.85; color: #ffb3b3; }
 
+    .retry-btn {
+      margin-top: 12px;
+      padding: 8px 20px;
+      background: rgba(255, 255, 255, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      border-radius: 20px;
+      color: #fff;
+      font-size: clamp(11px, 2.8vw, 13px);
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.2s;
+      display: block;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .retry-btn:hover { background: rgba(255, 255, 255, 0.25); }
+
+    .permission-hint {
+      margin-top: 10px;
+      font-size: clamp(10px, 2.4vw, 11px);
+      opacity: 0.55;
+      line-height: 1.5;
+      text-align: center;
+    }
+
     /* SVG icon animations */
     @keyframes sunRotate {
       from { transform: rotate(0deg); }
@@ -472,10 +497,17 @@
     document.getElementById('labelF').classList.toggle('active', state.isFahrenheit);
   }
 
-  function showError(msg) {
-    document.getElementById('content').innerHTML =
-      `<div class="status-msg error">${msg}</div>`;
+  function showError(msg, { retryable = false, hint = '' } = {}) {
+    document.getElementById('content').innerHTML = `
+      <div class="status-msg error">
+        ${msg}
+        ${hint ? `<div class="permission-hint">${hint}</div>` : ''}
+        ${retryable ? `<button class="retry-btn" id="retryBtn">Réessayer</button>` : ''}
+      </div>`;
     document.getElementById('toggleRow').style.display = 'none';
+    if (retryable) {
+      document.getElementById('retryBtn').addEventListener('click', init);
+    }
   }
 
   function showLoading() {
@@ -530,14 +562,8 @@
     }
   }
 
-  function init() {
-    if (!navigator.geolocation) {
-      showError('Geolocation is not supported by your browser.');
-      return;
-    }
-
+  function requestGeolocation() {
     showLoading();
-
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         state.lat = pos.coords.latitude;
@@ -546,15 +572,59 @@
         setInterval(() => loadWeather(state.lat, state.lon, true), REFRESH_INTERVAL);
       },
       (err) => {
-        const msgs = {
-          1: 'Location access denied.<br>Please allow location access and refresh.',
-          2: 'Location unavailable.<br>Try refreshing the page.',
-          3: 'Location request timed out.<br>Please refresh.',
-        };
-        showError(msgs[err.code] || 'Could not detect location.');
+        if (err.code === 1) {
+          // Permission refusée par le navigateur
+          showError(
+            'Accès à la localisation refusé.',
+            {
+              retryable: true,
+              hint: 'Pour autoriser : cliquez sur l\'icône 🔒 dans la barre d\'adresse → Localisation → Autoriser, puis réessayez.'
+            }
+          );
+        } else if (err.code === 2) {
+          showError('Localisation indisponible.', { retryable: true });
+        } else {
+          showError('La demande de localisation a expiré.', { retryable: true });
+        }
       },
-      { timeout: 10000, maximumAge: 300000 }
+      { timeout: 10000, maximumAge: 0 }
     );
+  }
+
+  function init() {
+    if (!navigator.geolocation) {
+      showError('La géolocalisation n\'est pas supportée par ce navigateur.');
+      return;
+    }
+
+    // Vérifier l'état de la permission avant de demander
+    if (navigator.permissions) {
+      navigator.permissions.query({ name: 'geolocation' }).then((result) => {
+        if (result.state === 'denied') {
+          // Bloqué au niveau navigateur — on informe et on propose de réessayer
+          // (utile si l'utilisateur a débloqué entre-temps)
+          showError(
+            'La localisation est bloquée dans ce navigateur.',
+            {
+              retryable: true,
+              hint: 'Cliquez sur 🔒 dans la barre d\'adresse → Localisation → Autoriser, puis réessayez.'
+            }
+          );
+          // Écouter un éventuel changement de permission (si l'utilisateur débloque)
+          result.onchange = () => {
+            if (result.state === 'granted' || result.state === 'prompt') {
+              requestGeolocation();
+            }
+          };
+        } else {
+          // 'granted' ou 'prompt' → on demande normalement
+          requestGeolocation();
+        }
+      });
+    } else {
+      // Permissions API non disponible (vieux navigateurs) → on tente directement
+      requestGeolocation();
+    }
   }
 
   // ── Toggle C°/F° ──────────────────────────────────────────
