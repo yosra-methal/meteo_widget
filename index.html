@@ -237,13 +237,13 @@
       background: rgba(255, 255, 255, 0.15);
       border: 1px solid rgba(255, 255, 255, 0.35);
       border-radius: 20px;
-      color: #0f2a5e;
+      color: #fff;
       font-size: clamp(11px, 2.8vw, 13px);
       font-family: inherit;
       cursor: pointer;
       transition: background 0.2s;
     }
-    .retry-btn:hover { background: rgba(255, 255, 255, 0.28); }
+    .retry-btn:hover { background: rgba(255, 255, 255, 0.28); color: #fff; }
 
     .permission-hint {
       font-size: clamp(10px, 2.4vw, 11px);
@@ -505,7 +505,7 @@
       </div>`;
     document.getElementById('toggleRow').style.display = 'none';
     if (retryable) {
-      document.getElementById('retryBtn').addEventListener('click', init);
+      document.getElementById('retryBtn').addEventListener('click', requestGeolocation);
     }
   }
 
