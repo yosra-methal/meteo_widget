@@ -251,6 +251,76 @@
       line-height: 1.5;
     }
 
+    /* ── City setup screen ── */
+    .city-setup {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      padding: clamp(10px, 3vh, 20px) 0;
+    }
+
+    .city-setup p {
+      font-size: clamp(12px, 3.2vw, 15px);
+      opacity: 0.85;
+      text-align: center;
+      line-height: 1.5;
+    }
+
+    .city-input-row {
+      display: flex;
+      gap: 8px;
+      width: 100%;
+    }
+
+    .city-input {
+      flex: 1;
+      padding: 9px 14px;
+      background: rgba(255, 255, 255, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      border-radius: 20px;
+      color: #fff;
+      font-size: clamp(12px, 3vw, 14px);
+      font-family: inherit;
+      outline: none;
+    }
+
+    .city-input::placeholder { color: rgba(255,255,255,0.45); }
+    .city-input:focus { border-color: rgba(255,255,255,0.65); background: rgba(255,255,255,0.2); }
+
+    .city-confirm-btn {
+      padding: 9px 18px;
+      background: rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      border-radius: 20px;
+      color: #fff;
+      font-size: clamp(12px, 3vw, 14px);
+      font-family: inherit;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.2s;
+    }
+    .city-confirm-btn:hover { background: rgba(255,255,255,0.3); }
+
+    .city-error {
+      font-size: clamp(10px, 2.6vw, 12px);
+      color: #ffb3b3;
+      text-align: center;
+    }
+
+    .change-city-btn {
+      background: none;
+      border: none;
+      color: rgba(255,255,255,0.45);
+      font-size: clamp(9px, 2vw, 11px);
+      cursor: pointer;
+      font-family: inherit;
+      padding: 0;
+      text-decoration: underline;
+      margin-top: 2px;
+    }
+    .change-city-btn:hover { color: rgba(255,255,255,0.7); }
+
     /* SVG icon animations */
     @keyframes sunRotate {
       from { transform: rotate(0deg); }
@@ -562,7 +632,9 @@
     }
   }
 
-  // ── Géolocalisation par nom de ville (URL param ?city=Paris) ──────────────
+  const STORAGE_KEY = 'meteo_widget_city';
+
+  // ── Géocodage par nom de ville ────────────────────────────
   async function locateByCity(city) {
     const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`;
     const res = await fetch(url);
@@ -577,15 +649,6 @@
     };
   }
 
-  // ── Fallback : géolocalisation par IP ────────────────────────────────────
-  async function locateByIP() {
-    const res = await fetch('https://ipapi.co/json/');
-    if (!res.ok) throw new Error('IP geolocation failed');
-    const data = await res.json();
-    if (!data.latitude || !data.longitude) throw new Error('No coordinates');
-    return { lat: data.latitude, lon: data.longitude };
-  }
-
   function startWithCoords(lat, lon) {
     state.lat = lat;
     state.lon = lon;
@@ -594,74 +657,81 @@
     loadWeather(state.lat, state.lon);
   }
 
-  function requestGeolocation() {
-    showLoading();
-    let resolved = false;
+  // ── Écran de saisie de ville ──────────────────────────────
+  function showCitySetup() {
+    document.getElementById('location').textContent = 'Weather Widget';
+    document.getElementById('toggleRow').style.display = 'none';
+    document.getElementById('content').innerHTML = `
+      <div class="city-setup">
+        <p>Enter your city to get started.</p>
+        <div class="city-input-row">
+          <input class="city-input" id="cityInput" type="text" placeholder="e.g. Paris, London…" autocomplete="off" />
+          <button class="city-confirm-btn" id="cityConfirmBtn">Go</button>
+        </div>
+        <span class="city-error" id="cityError" style="display:none"></span>
+      </div>`;
 
-    // Timeout de secours : si getCurrentPosition reste silencieux (iframe Notion)
-    const fallbackTimer = setTimeout(async () => {
-      if (resolved) return;
-      resolved = true;
+    const input = document.getElementById('cityInput');
+    const btn = document.getElementById('cityConfirmBtn');
+    input.focus();
+
+    async function confirm() {
+      const city = input.value.trim();
+      if (!city) return;
+      btn.disabled = true;
+      btn.textContent = '…';
+      document.getElementById('cityError').style.display = 'none';
       try {
-        const { lat, lon } = await locateByIP();
-        startWithCoords(lat, lon);
-      } catch {
-        showError('Could not detect location.', { retryable: true });
-      }
-    }, 5000);
-
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        if (resolved) return;
-        resolved = true;
-        clearTimeout(fallbackTimer);
-        startWithCoords(pos.coords.latitude, pos.coords.longitude);
-      },
-      async (err) => {
-        if (resolved) return;
-        resolved = true;
-        clearTimeout(fallbackTimer);
-        try {
-          const { lat, lon } = await locateByIP();
-          startWithCoords(lat, lon);
-        } catch {
-          if (err.code === 1) {
-            showError(
-              'Location access denied.',
-              {
-                retryable: true,
-                blocked: true,
-                hint: 'Click 🔒 in the address bar → Location → Allow, then retry.'
-              }
-            );
-          } else {
-            showError('Could not detect location.', { retryable: true });
-          }
-        }
-      },
-      { timeout: 4000, maximumAge: 60000 }
-    );
-  }
-
-  async function init() {
-    // Priorité 1 : paramètre URL ?city=Paris
-    const params = new URLSearchParams(window.location.search);
-    const cityParam = params.get('city');
-    if (cityParam) {
-      showLoading();
-      try {
-        const { lat, lon, name } = await locateByCity(cityParam);
+        const { lat, lon, name } = await locateByCity(city);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ lat, lon, name }));
         state.locationName = name;
         document.getElementById('location').textContent = name;
         startWithCoords(lat, lon);
+        addChangeCityBtn();
       } catch {
-        showError(`City "${cityParam}" not found.`, { retryable: false });
+        document.getElementById('cityError').textContent = 'City not found. Try again.';
+        document.getElementById('cityError').style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'Go';
       }
-      return;
     }
 
-    // Priorité 2 : GPS → fallback IP
-    requestGeolocation();
+    btn.addEventListener('click', confirm);
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') confirm(); });
+  }
+
+  function addChangeCityBtn() {
+    if (document.getElementById('changeCityBtn')) return;
+    const btn = document.createElement('button');
+    btn.id = 'changeCityBtn';
+    btn.className = 'change-city-btn';
+    btn.textContent = 'Change city';
+    btn.addEventListener('click', () => {
+      localStorage.removeItem(STORAGE_KEY);
+      if (state.intervalId) clearInterval(state.intervalId);
+      showCitySetup();
+    });
+    document.querySelector('.widget').appendChild(btn);
+  }
+
+  async function init() {
+    // Ville en mémoire → chargement immédiat, zéro friction
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try {
+        const { lat, lon, name } = JSON.parse(saved);
+        state.locationName = name;
+        document.getElementById('location').textContent = name;
+        startWithCoords(lat, lon);
+        addChangeCityBtn();
+        return;
+      } catch {
+        localStorage.removeItem(STORAGE_KEY);
+      }
+    }
+
+    // Première visite → saisie de ville
+    showCitySetup();
   }
 
   // ── Toggle C°/F° ──────────────────────────────────────────
@@ -672,11 +742,7 @@
 
   // ── Manual refresh ────────────────────────────────────────
   document.getElementById('refreshBtn').addEventListener('click', () => {
-    if (state.lat !== null) {
-      loadWeather(state.lat, state.lon, true);
-    } else {
-      init();
-    }
+    if (state.lat !== null) loadWeather(state.lat, state.lon, true);
   });
 
   init();
