@@ -224,35 +224,31 @@
       line-height: 1.6;
       flex: 1;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
+      gap: 10px;
     }
 
     .status-msg.error { opacity: 1; color: #0f2a5e; }
 
     .retry-btn {
-      margin-top: 12px;
-      padding: 8px 20px;
+      padding: 7px 20px;
       background: rgba(255, 255, 255, 0.15);
       border: 1px solid rgba(255, 255, 255, 0.35);
       border-radius: 20px;
-      color: #fff;
+      color: #0f2a5e;
       font-size: clamp(11px, 2.8vw, 13px);
       font-family: inherit;
       cursor: pointer;
       transition: background 0.2s;
-      display: block;
-      margin-left: auto;
-      margin-right: auto;
     }
-    .retry-btn:hover { background: rgba(255, 255, 255, 0.25); }
+    .retry-btn:hover { background: rgba(255, 255, 255, 0.28); }
 
     .permission-hint {
-      margin-top: 10px;
       font-size: clamp(10px, 2.4vw, 11px);
-      opacity: 0.55;
+      opacity: 0.6;
       line-height: 1.5;
-      text-align: center;
     }
 
     /* SVG icon animations */
@@ -497,12 +493,15 @@
     document.getElementById('labelF').classList.toggle('active', state.isFahrenheit);
   }
 
-  function showError(msg, { retryable = false, hint = '' } = {}) {
+  function showError(msg, { retryable = false, hint = '', blocked = false } = {}) {
+    if (blocked) {
+      document.getElementById('location').textContent = 'Meteo widget blocked';
+    }
     document.getElementById('content').innerHTML = `
       <div class="status-msg error">
-        ${msg}
-        ${hint ? `<div class="permission-hint">${hint}</div>` : ''}
-        ${retryable ? `<button class="retry-btn" id="retryBtn">Réessayer</button>` : ''}
+        <span>${msg}</span>
+        ${hint ? `<span class="permission-hint">${hint}</span>` : ''}
+        ${retryable ? `<button class="retry-btn" id="retryBtn">Retry</button>` : ''}
       </div>`;
     document.getElementById('toggleRow').style.display = 'none';
     if (retryable) {
@@ -577,6 +576,7 @@
             'Location access denied.',
             {
               retryable: true,
+              blocked: true,
               hint: 'Click 🔒 in the address bar → Location → Allow, then retry.'
             }
           );
@@ -606,6 +606,7 @@
             'Location is blocked.',
             {
               retryable: true,
+              blocked: true,
               hint: 'Click 🔒 in the address bar → Location → Allow, then retry.'
             }
           );
