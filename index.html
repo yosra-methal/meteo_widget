@@ -21,29 +21,54 @@
       overflow: hidden;
     }
 
-    /* ── Widget card — responsive but stays a card ── */
+    /* ── Widget card — ice glass effect ── */
     .widget {
       width: clamp(280px, 90vw, 400px);
       padding: clamp(18px, 5vw, 32px) clamp(16px, 4.5vw, 28px);
-      background: rgba(30, 40, 70, 0.45);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: linear-gradient(
+        135deg,
+        rgba(190, 220, 255, 0.22) 0%,
+        rgba(160, 200, 245, 0.15) 50%,
+        rgba(200, 230, 255, 0.2) 100%
+      );
+      backdrop-filter: blur(28px) saturate(180%) brightness(0.72);
+      -webkit-backdrop-filter: blur(28px) saturate(180%) brightness(0.72);
+      border-top: 1px solid rgba(255, 255, 255, 0.65);
+      border-left: 1px solid rgba(255, 255, 255, 0.4);
+      border-right: 1px solid rgba(255, 255, 255, 0.15);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: clamp(16px, 4vw, 24px);
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+      box-shadow:
+        0 8px 40px rgba(100, 160, 230, 0.18),
+        inset 0 1px 0 rgba(255, 255, 255, 0.55),
+        inset 0 -1px 0 rgba(255, 255, 255, 0.08);
       color: #fff;
       position: relative;
       overflow: hidden;
     }
 
+    /* Reflet de lumière sur la glace en haut à gauche */
     .widget::before {
       content: '';
       position: absolute;
-      top: -50%;
-      left: -50%;
-      width: 200%;
-      height: 200%;
-      background: radial-gradient(circle at 30% 20%, rgba(255,255,255,0.05) 0%, transparent 60%);
+      top: 0;
+      left: 0;
+      width: 60%;
+      height: 45%;
+      background: radial-gradient(ellipse at 20% 10%, rgba(255,255,255,0.18) 0%, transparent 70%);
+      border-radius: 0 0 100% 0;
+      pointer-events: none;
+    }
+
+    /* Reflet secondaire bas-droite */
+    .widget::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      width: 40%;
+      height: 30%;
+      background: radial-gradient(ellipse at 80% 90%, rgba(180, 220, 255, 0.1) 0%, transparent 70%);
       pointer-events: none;
     }
 
