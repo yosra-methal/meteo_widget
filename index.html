@@ -228,7 +228,7 @@
       justify-content: center;
     }
 
-    .status-msg.error { opacity: 0.85; color: #ffb3b3; }
+    .status-msg.error { opacity: 1; color: #0f2a5e; }
 
     .retry-btn {
       margin-top: 12px;
@@ -556,7 +556,7 @@
       document.getElementById('location').textContent = locationName;
       renderWeather();
     } catch (err) {
-      showError('Could not load weather data.<br>Check your connection and try again.');
+      showError('Could not load weather data.', { retryable: true });
     } finally {
       refreshBtn.classList.remove('spinning');
     }
@@ -573,18 +573,17 @@
       },
       (err) => {
         if (err.code === 1) {
-          // Permission refusée par le navigateur
           showError(
-            'Accès à la localisation refusé.',
+            'Location access denied.',
             {
               retryable: true,
-              hint: 'Pour autoriser : cliquez sur l\'icône 🔒 dans la barre d\'adresse → Localisation → Autoriser, puis réessayez.'
+              hint: 'Click 🔒 in the address bar → Location → Allow, then retry.'
             }
           );
         } else if (err.code === 2) {
-          showError('Localisation indisponible.', { retryable: true });
+          showError('Location unavailable.', { retryable: true });
         } else {
-          showError('La demande de localisation a expiré.', { retryable: true });
+          showError('Location request timed out.', { retryable: true });
         }
       },
       { timeout: 10000, maximumAge: 0 }
@@ -593,7 +592,7 @@
 
   function init() {
     if (!navigator.geolocation) {
-      showError('La géolocalisation n\'est pas supportée par ce navigateur.');
+      showError('Geolocation not supported by this browser.');
       return;
     }
 
@@ -604,10 +603,10 @@
           // Bloqué au niveau navigateur — on informe et on propose de réessayer
           // (utile si l'utilisateur a débloqué entre-temps)
           showError(
-            'La localisation est bloquée dans ce navigateur.',
+            'Location is blocked.',
             {
               retryable: true,
-              hint: 'Cliquez sur 🔒 dans la barre d\'adresse → Localisation → Autoriser, puis réessayez.'
+              hint: 'Click 🔒 in the address bar → Location → Allow, then retry.'
             }
           );
           // Écouter un éventuel changement de permission (si l'utilisateur débloque)
